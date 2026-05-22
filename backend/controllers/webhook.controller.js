@@ -171,6 +171,22 @@ const handleWhatsAppMessage = async (req, res) => {
   }
 };
 
+/**
+ * Handle Twilio status updates (sent, delivered, read).
+ * POST /api/webhook/whatsapp-status
+ */
+const handleStatusUpdate = async (req, res) => {
+  try {
+    const { MessageSid, MessageStatus, To } = req.body;
+    console.log(`[Twilio Status] Message ${MessageSid} to ${To}: ${MessageStatus}`);
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error(`[Webhook Status Error] ${error.message}`);
+    res.status(200).send('OK');
+  }
+};
+
 module.exports = {
-  handleWhatsAppMessage
+  handleWhatsAppMessage,
+  handleStatusUpdate
 };

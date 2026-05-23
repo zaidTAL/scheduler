@@ -82,6 +82,110 @@ class GoogleCalendarService {
   }
 
   /**
+   * Update a calendar event
+   * @param {object} tokens - Google OAuth tokens
+   * @param {string} eventId - Event ID to update
+   * @param {object} updateData - New event data (title, description, dateTime, duration)
+   * @param {string} timezone - User's timezone
+   * @returns {Promise<object>} Updated event
+   */
+  async updateEvent(tokens, eventId, updateData, timezone = 'Asia/Karachi') {
+    try {
+      console.log('Updating Google Calendar event:', { eventId, updateData });
+      this.initOAuth(tokens);
+
+      const startDate = new Date(updateData.dateTime);
+      const endDate = new Date(startDate.getTime() + updateData.duration * 60000);
+
+      const response = await this.calendar.events.patch({
+        calendarId: 'primary',
+        event: eventId,
+        requestBody: {
+          summary: updateData.title,
+          description: updateData.description || '',
+          start: {
+            dateTime: startDate.toISOString(),
+            timeZone: timezone
+          },
+          end: {
+            dateTime: endDate.toISOString(),
+            timeZone: timezone
+          }
+        }
+      });
+
+      console.log('Event updated successfully:', response.data.id);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating Google Calendar event:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a calendar event
+   * @param {object} tokens - Google OAuth tokens
+   * @param {string} eventId - Event ID to delete
+   */
+  async deleteEvent(tokens, eventId) {
+    try {
+      console.log('Deleting Google Calendar event:', eventId);
+      this.initOAuth(tokens);
+
+      await this.calendar.events.delete({
+        calendarId: 'primary',
+        event: eventId
+      });
+
+      console.log('Event deleted successfully');
+    } catch (error) {
+      console.error('Error deleting Google Calendar event:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get calendar event by title keyword
+   * @param {object} tokens - Google OAuth tokens
+   * @param {string} titleKeyword - Keyword to search in event summaries
+   * @returns {Promise<object|null>} Event object or null if not found
+   */
+  async getEventByTitle(tokens, titleKeyword) {
+    try {
+      console.log('Searching for event with keyword:', titleKeyword);
+      this.initOAuth(tokens);
+
+      const response = await this.calendar.events.list({
+        calendarId: 'primary',
+        timeMin: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // Look back 7 days
+        maxResults: 50,
+        singleEvents: true
+      });
+
+      const events = response.data.items || [];
+
+      // Find event whose summary contains the keyword (case insensitive)
+      const foundEvent = events.find(event =>
+        event.summary && event.summary.toLowerCase().includes(titleKeyword.toLowerCase())
+      );
+
+      if (foundEvent) {
+        return {
+          id: foundEvent.id,
+          summary: foundEvent.summary,
+          start: foundEvent.start,
+          end: foundEvent.end
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error searching for event:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /**
    * List upcoming calendar events
    * @param {object} tokens - Google OAuth tokens
    * @param {number} maxResults - Max events to return

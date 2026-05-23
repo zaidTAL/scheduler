@@ -24,6 +24,7 @@ Detect the action:
 - Creating new → action = "create"
 - "delete", "remove", "cancel" → action = "delete"
 - "change priority", "move to p1/p2/p3", "reprioritize" → action = "update_priority"
+- "change time", "move to", "reschedule", "change duration", "update" → action = "update"
 - "mark done", "complete", "finished" → action = "complete"
 - "list", "show my schedule", "what am i doing", "whats next", "upcoming" → action = "list"
 
@@ -40,14 +41,14 @@ Detect priority:
 
 Return ONLY valid JSON:
 {
-  "action": "create" | "delete" | "update_priority" | "complete" | "list",
+  "action": "create" | "delete" | "update_priority" | "update" | "complete" | "list",
   "type": "task" | "meeting",
   "title": "string",
   "description": "string",
   "dateTime": "ISO 8601 string or null",
   "duration": minutes_as_number_or_null,
   "priority": "p1" | "p2" | "p3" | null,
-  "targetTitle": "keyword to find existing task/event (for delete/update/list actions)",
+  "targetTitle": "keyword to find existing task/event (for delete/update/complete actions)",
   "newPriority": "p1" | "p2" | "p3" | null (only for update_priority action)
 }
 

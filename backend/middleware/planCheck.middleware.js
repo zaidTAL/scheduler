@@ -71,22 +71,29 @@ const checkPlanLimits = async (user, options = {}) => {
   }
 
   if (action !== 'create' && !limits.allowedActions.includes(action)) {
-    // Check for Correction Window (10 minutes)
-    const tenMinutesAgo = new Date(Date.now() - limits.correctionWindowMinutes * 60 * 1000);
-    const recentTask = await Task.findOne({
-      userId: user._id,
-      createdAt: { $gte: tenMinutesAgo },
-      status: 'scheduled'
-    });
+    // Check for Correction Window
+    let isWithinWindow = false;
+    
+    if (limits.correctionWindowMinutes === Infinity) {
+      isWithinWindow = true; // Pro users always have access
+    } else {
+      const tenMinutesAgo = new Date(Date.now() - limits.correctionWindowMinutes * 60 * 1000);
+      const recentTask = await Task.findOne({
+        userId: user._id,
+        createdAt: { $gte: tenMinutesAgo },
+        status: 'scheduled'
+      });
+      if (recentTask) isWithinWindow = true;
+    }
 
-    if (!recentTask) {
+    if (!isWithinWindow) {
       return {
         allowed: false,
         message: `The '${action.replace('_', ' ')}' operation is restricted on your current plan. ${limits.upgradeMessage}`
       };
     }
-    // If recent task exists, we allow the correction (delete/update)
-    console.log(`[Correction Window] Allowing '${action}' for ${user.name} via correction window.`);
+    // If within window, we allow the correction (delete/update)
+    console.log(`[Correction Window] Allowing '${action}' for ${user.name}.`);
   }
 
   // 6. Check Priority Boundaries

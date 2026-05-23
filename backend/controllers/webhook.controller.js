@@ -157,6 +157,43 @@ const handleWhatsAppMessage = async (req, res) => {
           resultMessage = `📅 Your${filterLabel} schedule is clear! Nothing coming up.`;
         }
       }
+      // General Update logic (time, duration, title)
+      else if (action === 'update') {
+        if (user.googleTokens) {
+          user.googleTokens = await GoogleCalendarService.refreshTokenIfNeeded(user);
+          await user.save();
+
+          if (type === 'meeting') {
+            const event = await GoogleCalendarService.getEventByTitle(user.googleTokens, targetTitle);
+            if (event) {
+              await GoogleCalendarService.updateEvent(user.googleTokens, event.id, {
+                title: title || event.summary,
+                description: parsedData.description || '',
+                dateTime: dateTime || event.start.dateTime,
+                duration: duration || 30
+              }, user.timezone);
+              resultMessage = `🔄 Meeting "${targetTitle}" updated successfully.`;
+            } else {
+              resultMessage = `⚠️ Could not find meeting "${targetTitle}" to update.`;
+            }
+          } else {
+            // Task update (currently limited to title/notes/due)
+            const task = await GoogleCalendarService.getTaskByTitle(user.googleTokens, targetTitle);
+            if (task) {
+              // Reuse priority logic if not provided
+              const p = priority || (task.title.match(/\[(P[1-3])\]/) ? task.title.match(/\[(P[1-3])\]/)[1].toLowerCase() : null);
+              await GoogleCalendarService.createTask(user.googleTokens, { 
+                title: title || task.title.replace(/^\[P[1-3]\]\s*/, ''), 
+                notes: parsedData.description || task.notes, 
+                due: dateTime || task.due, 
+                priority: p 
+              });
+              await GoogleCalendarService.deleteTask(user.googleTokens, task.id); // Simple replace
+              resultMessage = `🔄 Task "${targetTitle}" updated successfully.`;
+            }
+          }
+        }
+      }
       // Pro-only actions (delete, update, complete) - Now allowed via correction window
       else if (action === 'delete') {
         if (user.googleTokens) {
@@ -170,6 +207,14 @@ const handleWhatsAppMessage = async (req, res) => {
               resultMessage = `🗑️ Task "${targetTitle}" deleted successfully.`;
             } else {
               resultMessage = `⚠️ Could not find task "${targetTitle}" to delete.`;
+            }
+          } else if (type === 'meeting') {
+            const event = await GoogleCalendarService.getEventByTitle(user.googleTokens, targetTitle);
+            if (event) {
+              await GoogleCalendarService.deleteEvent(user.googleTokens, event.id);
+              resultMessage = `🗑️ Meeting "${targetTitle}" deleted successfully.`;
+            } else {
+              resultMessage = `⚠️ Could not find meeting "${targetTitle}" to delete.`;
             }
           }
         }

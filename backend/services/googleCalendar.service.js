@@ -33,66 +33,27 @@ class GoogleCalendarService {
    * Create a calendar event
    * @param {object} tokens - Google OAuth tokens
    * @param {object} eventData - Event data (title, description, dateTime, duration)
+   * @param {string} timezone - User's timezone
    * @returns {Promise<object>} Created event
    */
-  async createEvent(tokens, eventData) {
+  async createEvent(tokens, eventData, timezone = 'Asia/Karachi') {
     try {
       console.log('Creating Google Calendar event:', eventData);
       this.initOAuth(tokens);
 
-      // Parse the input dateTime - could be ISO (UTC) or local time string
-      let startDate;
-      const inputDateTime = eventData.dateTime;
-
-      if (inputDateTime.endsWith('Z')) {
-        // UTC time from test script - convert to Asia/Karachi local time
-        startDate = new Date(inputDateTime);
-      } else {
-        // Local time string from AI (Asia/Karachi)
-        startDate = new Date(inputDateTime + '+05:00');
-      }
-
-      // Calculate end time
+      const startDate = new Date(eventData.dateTime);
       const endDate = new Date(startDate.getTime() + eventData.duration * 60000);
-
-      // Format for Google Calendar: local time string in Asia/Karachi timezone
-      // Google Calendar interprets dateTime + timeZone together
-      const formatForGoogleCal = (date) => {
-        // Convert UTC date to Asia/Karachi time (UTC+5)
-        const utcTime = date.getTime();
-        const pktTime = utcTime + (5 * 60 * 60 * 1000); // Add 5 hours
-        const pktDate = new Date(pktTime);
-
-        const year = pktDate.getUTCFullYear();
-        const month = String(pktDate.getUTCMonth() + 1).padStart(2, '0');
-        const day = String(pktDate.getUTCDate()).padStart(2, '0');
-        const hours = String(pktDate.getUTCHours()).padStart(2, '0');
-        const minutes = String(pktDate.getUTCMinutes()).padStart(2, '0');
-        const seconds = String(pktDate.getUTCSeconds()).padStart(2, '0');
-
-        return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
-      };
-
-      const startDateTime = formatForGoogleCal(startDate);
-      const endDateTime = formatForGoogleCal(endDate);
-
-      console.log('Event dates:', {
-        input: inputDateTime,
-        start: startDateTime,
-        end: endDateTime,
-        timezone: 'Asia/Karachi (UTC+5)'
-      });
 
       const event = {
         summary: eventData.title,
         description: eventData.description || '',
         start: {
-          dateTime: startDateTime,
-          timeZone: 'Asia/Karachi'
+          dateTime: startDate.toISOString(),
+          timeZone: timezone
         },
         end: {
-          dateTime: endDateTime,
-          timeZone: 'Asia/Karachi'
+          dateTime: endDate.toISOString(),
+          timeZone: timezone
         },
         reminders: {
           useDefault: false,
@@ -144,20 +105,31 @@ class GoogleCalendarService {
   }
 
   /**
-   * List upcoming tasks
+   * List upcoming tasks with optional priority filtering
    * @param {object} tokens - Google OAuth tokens
    * @param {number} maxResults - Max tasks to return
+   * @param {string} priorityFilter - Optional priority to filter by (e.g., 'p1')
    * @returns {Promise<Array>} List of tasks
    */
-  async listTasks(tokens, maxResults = 10) {
+  async listTasks(tokens, maxResults = 10, priorityFilter = null) {
     try {
       this.initOAuth(tokens);
       const response = await this.tasksClient.tasks.list({
         tasklist: '@default',
         showCompleted: false,
-        maxResults: maxResults
+        maxResults: 50 // Fetch more to allow for filtering
       });
-      return response.data.items || [];
+      
+      let tasks = response.data.items || [];
+
+      if (priorityFilter) {
+        const filterTag = `[${priorityFilter.toUpperCase()}]`;
+        tasks = tasks.filter(task => 
+          task.title && task.title.toUpperCase().includes(filterTag)
+        );
+      }
+
+      return tasks.slice(0, maxResults);
     } catch (error) {
       console.error('Error listing Google Tasks:', error.message);
       throw error;

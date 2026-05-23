@@ -98,7 +98,7 @@ const handleWhatsAppMessage = async (req, res) => {
           if (user.calendarType === 'google_calendar' && user.googleTokens) {
             user.googleTokens = await GoogleCalendarService.refreshTokenIfNeeded(user);
             await user.save();
-            await GoogleCalendarService.createEvent(user.googleTokens, parsedData);
+            await GoogleCalendarService.createEvent(user.googleTokens, parsedData, user.timezone);
             
             const dateStr = new Date(dateTime).toLocaleString('en-PK', { dateStyle: 'medium', timeStyle: 'short', timeZone: user.timezone });
             resultMessage = `✅ *Meeting Scheduled!*\n\n📍 ${title}\n📅 ${dateStr}\n⏳ Duration: ${duration}m`;
@@ -117,17 +117,21 @@ const handleWhatsAppMessage = async (req, res) => {
           await incrementUsage(user, 'task', messageType === 'voice');
         }
       } 
-      // Handle 'list' action (Query/Read gap)
+      // Handle 'list' action (Query/Read gap) - with priority filter support
       else if (action === 'list') {
         user.googleTokens = await GoogleCalendarService.refreshTokenIfNeeded(user);
         await user.save();
         
+        // Extract priority filter if present (e.g. from targetTitle or priority field)
+        const filter = priority || (targetTitle && targetTitle.match(/p[1-3]/i) ? targetTitle : null);
+        
         const events = await GoogleCalendarService.listEvents(user.googleTokens, 5);
-        const tasks = await GoogleCalendarService.listTasks(user.googleTokens, 5);
+        const tasks = await GoogleCalendarService.listTasks(user.googleTokens, 10, filter);
         
-        resultMessage = `📅 *Your Upcoming Schedule:*\n\n`;
+        const filterLabel = filter ? ` [${filter.toUpperCase()}]` : '';
+        resultMessage = `📅 *Your Upcoming${filterLabel} Schedule:*\n\n`;
         
-        if (events.length > 0) {
+        if (events.length > 0 && !filter) { // Only show meetings if no specific priority filter
           resultMessage += `*Meetings:*\n`;
           events.forEach((evt, i) => {
             const start = new Date(evt.start.dateTime || evt.start.date).toLocaleString('en-PK', { 
@@ -140,7 +144,7 @@ const handleWhatsAppMessage = async (req, res) => {
         }
         
         if (tasks.length > 0) {
-          resultMessage += `*Tasks:*\n`;
+          resultMessage += `*Tasks${filterLabel}:*\n`;
           tasks.forEach((tsk, i) => {
             const pMatch = tsk.title.match(/^\[(P[1-3])\]/);
             const p = pMatch ? ` ${pMatch[0]}` : '';
@@ -149,8 +153,8 @@ const handleWhatsAppMessage = async (req, res) => {
           });
         }
         
-        if (events.length === 0 && tasks.length === 0) {
-          resultMessage = `📅 Your schedule is clear! Nothing coming up.`;
+        if (tasks.length === 0 && (events.length === 0 || filter)) {
+          resultMessage = `📅 Your${filterLabel} schedule is clear! Nothing coming up.`;
         }
       }
       // Pro-only actions (delete, update, complete) - Now allowed via correction window

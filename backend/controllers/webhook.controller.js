@@ -67,7 +67,7 @@ const handleWhatsAppMessage = async (req, res) => {
     let parsedData;
     try {
       const isMultilingual = user.plan === 'pro';
-      parsedData = await GroqService.parseTaskWithAI(messageText, isMultilingual);
+      parsedData = await GroqService.parseTaskWithAI(messageText, user.timezone, isMultilingual);
     } catch (parseError) {
       await TwilioService.sendWhatsAppMessage(From, "I'm having trouble understanding that request. Could you try rephrasing it?");
       return res.status(200).send('OK');
@@ -100,12 +100,9 @@ const handleWhatsAppMessage = async (req, res) => {
             await user.save();
             await GoogleCalendarService.createEvent(user.googleTokens, parsedData);
             
-            const dateStr = new Date(dateTime).toLocaleString('en-PK', { dateStyle: 'medium', timeStyle: 'short' });
+            const dateStr = new Date(dateTime).toLocaleString('en-PK', { dateStyle: 'medium', timeStyle: 'short', timeZone: user.timezone });
             resultMessage = `✅ *Meeting Scheduled!*\n\n📍 ${title}\n📅 ${dateStr}\n⏳ Duration: ${duration}m`;
-          } else if (user.calendarType === 'calendly' && user.calendlyToken) {
-            const meeting = await CalendlyService.createOneOffMeeting(user.calendlyToken, user.calendlyUserUri, { title, startTime: dateTime, duration });
-            resultMessage = `✅ *Meeting link created!*\n\n📍 ${title}\n🔗 ${meeting.scheduling_url}`;
-          }
+          } 
           await incrementUsage(user, 'meeting', messageType === 'voice');
         } else {
           // Task Logic
@@ -120,28 +117,77 @@ const handleWhatsAppMessage = async (req, res) => {
           await incrementUsage(user, 'task', messageType === 'voice');
         }
       } 
-      // Pro-only actions (delete, update, complete)
+      // Handle 'list' action (Query/Read gap)
+      else if (action === 'list') {
+        user.googleTokens = await GoogleCalendarService.refreshTokenIfNeeded(user);
+        await user.save();
+        
+        const events = await GoogleCalendarService.listEvents(user.googleTokens, 5);
+        const tasks = await GoogleCalendarService.listTasks(user.googleTokens, 5);
+        
+        resultMessage = `📅 *Your Upcoming Schedule:*\n\n`;
+        
+        if (events.length > 0) {
+          resultMessage += `*Meetings:*\n`;
+          events.forEach((evt, i) => {
+            const start = new Date(evt.start.dateTime || evt.start.date).toLocaleString('en-PK', { 
+              timeZone: user.timezone,
+              month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+            });
+            resultMessage += `${i+1}. ${evt.summary} (${start})\n`;
+          });
+          resultMessage += `\n`;
+        }
+        
+        if (tasks.length > 0) {
+          resultMessage += `*Tasks:*\n`;
+          tasks.forEach((tsk, i) => {
+            const pMatch = tsk.title.match(/^\[(P[1-3])\]/);
+            const p = pMatch ? ` ${pMatch[0]}` : '';
+            const t = tsk.title.replace(/^\[P[1-3]\]\s*/, '');
+            resultMessage += `${i+1}.${p} ${t}\n`;
+          });
+        }
+        
+        if (events.length === 0 && tasks.length === 0) {
+          resultMessage = `📅 Your schedule is clear! Nothing coming up.`;
+        }
+      }
+      // Pro-only actions (delete, update, complete) - Now allowed via correction window
       else if (action === 'delete') {
-        if (type === 'task') {
-          const task = await GoogleCalendarService.getTaskByTitle(user.googleTokens, targetTitle);
-          if (task) {
-            await GoogleCalendarService.deleteTask(user.googleTokens, task.id);
-            resultMessage = `🗑️ Task "${targetTitle}" deleted successfully.`;
-          } else {
-            resultMessage = `⚠️ Could not find task "${targetTitle}" to delete.`;
+        if (user.googleTokens) {
+          user.googleTokens = await GoogleCalendarService.refreshTokenIfNeeded(user);
+          await user.save();
+          
+          if (type === 'task') {
+            const task = await GoogleCalendarService.getTaskByTitle(user.googleTokens, targetTitle);
+            if (task) {
+              await GoogleCalendarService.deleteTask(user.googleTokens, task.id);
+              resultMessage = `🗑️ Task "${targetTitle}" deleted successfully.`;
+            } else {
+              resultMessage = `⚠️ Could not find task "${targetTitle}" to delete.`;
+            }
           }
         }
       } else if (action === 'update_priority') {
-        const task = await GoogleCalendarService.getTaskByTitle(user.googleTokens, targetTitle);
-        if (task) {
-          await GoogleCalendarService.updateTaskPriority(user.googleTokens, task.id, newPriority);
-          resultMessage = `🔄 Task "${targetTitle}" priority updated to ${newPriority.toUpperCase()}.`;
+        if (user.googleTokens) {
+          user.googleTokens = await GoogleCalendarService.refreshTokenIfNeeded(user);
+          await user.save();
+          const task = await GoogleCalendarService.getTaskByTitle(user.googleTokens, targetTitle);
+          if (task) {
+            await GoogleCalendarService.updateTaskPriority(user.googleTokens, task.id, newPriority);
+            resultMessage = `🔄 Task "${targetTitle}" priority updated to ${newPriority.toUpperCase()}.`;
+          }
         }
       } else if (action === 'complete') {
-        const task = await GoogleCalendarService.getTaskByTitle(user.googleTokens, targetTitle);
-        if (task) {
-          await GoogleCalendarService.completeTask(user.googleTokens, task.id);
-          resultMessage = `🎉 Task "${targetTitle}" marked as complete!`;
+        if (user.googleTokens) {
+          user.googleTokens = await GoogleCalendarService.refreshTokenIfNeeded(user);
+          await user.save();
+          const task = await GoogleCalendarService.getTaskByTitle(user.googleTokens, targetTitle);
+          if (task) {
+            await GoogleCalendarService.completeTask(user.googleTokens, task.id);
+            resultMessage = `🎉 Task "${targetTitle}" marked as complete!`;
+          }
         }
       }
 

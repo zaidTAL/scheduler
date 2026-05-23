@@ -121,6 +121,50 @@ class GoogleCalendarService {
   }
 
   /**
+   * List upcoming calendar events
+   * @param {object} tokens - Google OAuth tokens
+   * @param {number} maxResults - Max events to return
+   * @returns {Promise<Array>} List of events
+   */
+  async listEvents(tokens, maxResults = 10) {
+    try {
+      this.initOAuth(tokens);
+      const response = await this.calendar.events.list({
+        calendarId: 'primary',
+        timeMin: new Date().toISOString(),
+        maxResults: maxResults,
+        singleEvents: true,
+        orderBy: 'startTime'
+      });
+      return response.data.items || [];
+    } catch (error) {
+      console.error('Error listing Google Calendar events:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * List upcoming tasks
+   * @param {object} tokens - Google OAuth tokens
+   * @param {number} maxResults - Max tasks to return
+   * @returns {Promise<Array>} List of tasks
+   */
+  async listTasks(tokens, maxResults = 10) {
+    try {
+      this.initOAuth(tokens);
+      const response = await this.tasksClient.tasks.list({
+        tasklist: '@default',
+        showCompleted: false,
+        maxResults: maxResults
+      });
+      return response.data.items || [];
+    } catch (error) {
+      console.error('Error listing Google Tasks:', error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Refresh access token if expired
    * @param {object} user - User document with googleTokens
    * @returns {Promise<object>} Updated tokens

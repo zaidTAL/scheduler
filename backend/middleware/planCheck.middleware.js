@@ -1,5 +1,7 @@
 const PLAN_LIMITS = require('../utils/planLimits');
 
+const Task = require('../models/Task');
+
 /**
  * Robust middleware/helper to check plan limits and operational permissions.
  * Can be used as a standard Express middleware or called manually in controllers.
@@ -33,16 +35,18 @@ const checkPlanLimits = async (user, options = {}) => {
     user.usage.meetingsToday = 0;
     user.usage.voiceToday = 0;
     user.usage.lastResetDate = now;
-    // We don't save here to avoid multiple saves; caller should save or we save at the end
   }
 
   // 2. Check Daily Consumption (Cumulative tasks + meetings)
-  const currentTotal = user.usage.tasksToday + user.usage.meetingsToday;
-  if (currentTotal >= limits.dailyLimit) {
-    return {
-      allowed: false,
-      message: `Daily limit reached (${limits.dailyLimit}/${limits.dailyLimit}). ${limits.upgradeMessage || 'Upgrade for more!'}`
-    };
+  // 'list' action does not count towards daily creation limits
+  if (action === 'create') {
+    const currentTotal = user.usage.tasksToday + user.usage.meetingsToday;
+    if (currentTotal >= limits.dailyLimit) {
+      return {
+        allowed: false,
+        message: `Daily limit reached (${limits.dailyLimit}/${limits.dailyLimit}). ${limits.upgradeMessage || 'Upgrade for more!'}`
+      };
+    }
   }
 
   // 3. Check Message Format (Text vs Voice)
@@ -61,12 +65,28 @@ const checkPlanLimits = async (user, options = {}) => {
     };
   }
 
-  // 5. Check Action (Create vs Update/Delete/Complete)
+  // 5. Check Action (Create vs Update/Delete/Complete vs List)
+  if (action === 'list') {
+    return { allowed: true }; // Everyone can list their schedule
+  }
+
   if (action !== 'create' && !limits.allowedActions.includes(action)) {
-    return {
-      allowed: false,
-      message: `The '${action.replace('_', ' ')}' operation is restricted on your current plan. ${limits.upgradeMessage}`
-    };
+    // Check for Correction Window (10 minutes)
+    const tenMinutesAgo = new Date(Date.now() - limits.correctionWindowMinutes * 60 * 1000);
+    const recentTask = await Task.findOne({
+      userId: user._id,
+      createdAt: { $gte: tenMinutesAgo },
+      status: 'scheduled'
+    });
+
+    if (!recentTask) {
+      return {
+        allowed: false,
+        message: `The '${action.replace('_', ' ')}' operation is restricted on your current plan. ${limits.upgradeMessage}`
+      };
+    }
+    // If recent task exists, we allow the correction (delete/update)
+    console.log(`[Correction Window] Allowing '${action}' for ${user.name} via correction window.`);
   }
 
   // 6. Check Priority Boundaries

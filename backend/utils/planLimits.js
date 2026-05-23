@@ -1,26 +1,29 @@
 const PLAN_LIMITS = {
   free: {
-    dailyLimit: 2,
+    dailyLimit: 7,
     allowedFormats: ['text'],
     allowedTypes: ['task'],
-    allowedActions: ['create'],
-    maxPriority: 3, // Default p1-p3
-    upgradeMessage: "Upgrade to Plus for voice support and higher daily limits!"
+    allowedActions: ['create'], // 'delete' and 'update' allowed via 10-min correction window in middleware
+    maxPriority: 3,
+    correctionWindowMinutes: 10,
+    upgradeMessage: "Upgrade to Plus for voice support and meeting scheduling!"
   },
   plus: {
-    dailyLimit: 8,
+    dailyLimit: 20,
     allowedFormats: ['text', 'voice'],
-    allowedTypes: ['task'],
-    allowedActions: ['create'],
+    allowedTypes: ['task', 'meeting'],
+    allowedActions: ['create'], // 'delete' and 'update' allowed via 10-min correction window in middleware
     maxPriority: 10,
-    upgradeMessage: "Upgrade to Pro for full operational access (meetings, updates, deletes) and unlimited priorities!"
+    correctionWindowMinutes: 10,
+    upgradeMessage: "Upgrade to Pro for unlimited usage and full operational control!"
   },
   pro: {
-    dailyLimit: 25,
+    dailyLimit: Infinity,
     allowedFormats: ['text', 'voice'],
     allowedTypes: ['task', 'meeting'],
     allowedActions: ['create', 'delete', 'update_priority', 'complete'],
     maxPriority: Infinity,
+    correctionWindowMinutes: Infinity,
     multilingual: true
   }
 };

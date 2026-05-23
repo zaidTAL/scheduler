@@ -60,6 +60,10 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  timezone: {
+    type: String,
+    default: 'Asia/Karachi'
+  },
   plan: {
     type: String,
     enum: ['free', 'plus', 'pro'],

@@ -28,7 +28,8 @@ const register = async (req, res) => {
       availability,
       sleepTime,
       calendarType,
-      calendlyToken
+      calendlyToken,
+      timezone
     } = req.body;
 
     // Sanitize phone number to strict E.164
@@ -78,6 +79,7 @@ const register = async (req, res) => {
       calendarType: calendarType || 'google_calendar',
       calendlyToken: calendlyToken || null,
       calendlyUserUri,
+      timezone: timezone || 'Asia/Karachi',
       isVerified: true
     });
 

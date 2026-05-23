@@ -250,11 +250,16 @@ const handleWhatsAppMessage = async (req, res) => {
       await TwilioService.sendWhatsAppMessage(From, resultMessage);
     }
 
+    // Ensure title exists for database log (even if AI didn't return it for an update)
+    if (!parsedData.title && targetTitle) {
+      parsedData.title = targetTitle;
+    }
+
     await Task.create({
       userId: user._id,
       rawMessage: messageText,
       parsedData,
-      status: resultMessage.includes('✅') || resultMessage.includes('🎉') ? 'scheduled' : 'failed',
+      status: resultMessage.includes('✅') || resultMessage.includes('🎉') || resultMessage.includes('🔄') ? 'scheduled' : 'failed',
       source: messageType
     });
 

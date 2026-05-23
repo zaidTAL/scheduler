@@ -100,6 +100,7 @@ class GoogleCalendarService {
       const response = await this.calendar.events.patch({
         calendarId: 'primary',
         event: eventId,
+        eventId: eventId, // Some versions/wrappers might expect this
         requestBody: {
           summary: updateData.title,
           description: updateData.description || '',

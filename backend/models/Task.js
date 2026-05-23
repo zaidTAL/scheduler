@@ -13,7 +13,7 @@ const taskSchema = new mongoose.Schema({
   parsedData: {
     title: {
       type: String,
-      required: true
+      required: false
     },
     description: String,
     dateTime: {
@@ -31,7 +31,7 @@ const taskSchema = new mongoose.Schema({
     },
     action: {
       type: String,
-      enum: ['create', 'delete', 'update_priority', 'complete'],
+      enum: ['create', 'delete', 'update_priority', 'update', 'complete'],
       default: 'create'
     },
     priority: {

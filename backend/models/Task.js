@@ -31,7 +31,7 @@ const taskSchema = new mongoose.Schema({
     },
     action: {
       type: String,
-      enum: ['create', 'delete', 'update_priority', 'update', 'complete'],
+      enum: ['create', 'delete', 'update_priority', 'update', 'complete', 'list'],
       default: 'create'
     },
     priority: {

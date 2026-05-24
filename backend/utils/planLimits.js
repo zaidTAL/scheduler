@@ -1,7 +1,7 @@
 const PLAN_LIMITS = {
   free: {
     dailyLimit: 7,
-    allowedFormats: ['text'],
+    allowedFormats: ['text', 'meeting'],
     allowedTypes: ['task'],
     allowedActions: ['create'], // 'delete' and 'update' allowed via 10-min correction window in middleware
     maxPriority: 3,

@@ -3,7 +3,6 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
-const xss = require('xss-clean');
 const hpp = require('hpp');
 const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
@@ -15,6 +14,9 @@ const userRoutes = require('./routes/user.routes');
 
 // Initialize Express app
 const app = express();
+
+// Enable 'trust proxy' (Required for rate limiting when behind ngrok/proxies)
+app.set('trust proxy', 1);
 
 // 1. SECURITY HEADERS (Helmet)
 app.use(helmet());
@@ -56,7 +58,28 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
 // 5. DATA SANITIZATION (NoSQL Injection & XSS)
 app.use(mongoSanitize());
-app.use(xss());
+
+// Custom XSS Sanitizer for Express 5 (Avoids read-only property errors)
+const sanitize = (data) => {
+  if (typeof data !== 'object' || data === null) {
+    return typeof data === 'string' ? data.replace(/<[^>]*>?/gm, '') : data;
+  }
+  for (let key in data) {
+    if (typeof data[key] === 'string') {
+      data[key] = data[key].replace(/<[^>]*>?/gm, '');
+    } else if (typeof data[key] === 'object') {
+      sanitize(data[key]);
+    }
+  }
+  return data;
+};
+
+app.use((req, res, next) => {
+  if (req.body) sanitize(req.body);
+  if (req.query) sanitize(req.query);
+  if (req.params) sanitize(req.params);
+  next();
+});
 
 // 6. HTTP PARAMETER POLLUTION (Prevent HPP attacks)
 app.use(hpp());

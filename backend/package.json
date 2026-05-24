@@ -17,7 +17,6 @@
     "mongodb": "^7.2.0",
     "mongoose": "^9.4.1",
     "node-cron": "^4.2.1",
-    "twilio": "^5.13.1",
-    "xss-clean": "^0.1.4"
+    "twilio": "^5.13.1"
   }
 }

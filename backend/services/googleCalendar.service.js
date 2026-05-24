@@ -135,7 +135,8 @@ class GoogleCalendarService {
 
       await this.calendar.events.delete({
         calendarId: 'primary',
-        event: eventId
+        event: eventId,
+        eventId: eventId // Some versions/wrappers might expect this
       });
 
       console.log('Event deleted successfully');

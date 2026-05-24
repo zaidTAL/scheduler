@@ -2,11 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const mongoSanitize = require('express-mongo-sanitize');
-const hpp = require('hpp');
 const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
-
 // Import routes
 const authRoutes = require('./routes/auth.routes');
 const webhookRoutes = require('./routes/webhook.routes');
@@ -56,33 +53,49 @@ app.use('/api/auth/register', authLimiter);
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
-// 5. DATA SANITIZATION (NoSQL Injection & XSS)
-app.use(mongoSanitize());
-
-// Custom XSS Sanitizer for Express 5 (Avoids read-only property errors)
-const sanitize = (data) => {
-  if (typeof data !== 'object' || data === null) {
-    return typeof data === 'string' ? data.replace(/<[^>]*>?/gm, '') : data;
-  }
-  for (let key in data) {
-    if (typeof data[key] === 'string') {
-      data[key] = data[key].replace(/<[^>]*>?/gm, '');
-    } else if (typeof data[key] === 'object') {
-      sanitize(data[key]);
+/**
+ * Express 5 Compatible Security Engine
+ * Protects against NoSQL Injection, XSS, and HPP without overwriting req.query
+ */
+const securityEngine = (req, res, next) => {
+  const sanitize = (data) => {
+    if (typeof data !== 'object' || data === null) {
+      return typeof data === 'string' ? data.replace(/<[^>]*>?/gm, '') : data;
     }
-  }
-  return data;
-};
 
-app.use((req, res, next) => {
+    for (let key in data) {
+      // 1. NoSQL Injection: Remove keys starting with $ or containing .
+      if (key.startsWith('$') || key.includes('.')) {
+        delete data[key];
+        continue;
+      }
+
+      // 2. XSS: Clean string values
+      if (typeof data[key] === 'string') {
+        data[key] = data[key].replace(/<[^>]*>?/gm, '');
+      } 
+      // 3. HPP (HTTP Parameter Pollution): If value is an array, take only the last element
+      else if (Array.isArray(data[key])) {
+        data[key] = data[key][data[key].length - 1];
+        if (typeof data[key] === 'string') {
+          data[key] = data[key].replace(/<[^>]*>?/gm, '');
+        }
+      }
+      // Recursive call for nested objects
+      else if (typeof data[key] === 'object') {
+        sanitize(data[key]);
+      }
+    }
+  };
+
   if (req.body) sanitize(req.body);
   if (req.query) sanitize(req.query);
   if (req.params) sanitize(req.params);
-  next();
-});
 
-// 6. HTTP PARAMETER POLLUTION (Prevent HPP attacks)
-app.use(hpp());
+  next();
+};
+
+app.use(securityEngine);
 
 // Connect to database
 connectDB();

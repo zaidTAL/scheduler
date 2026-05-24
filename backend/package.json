@@ -6,13 +6,18 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^8.5.2",
     "form-data": "^4.0.0",
     "googleapis": "^171.4.0",
     "groq-sdk": "^0.7.0",
+    "helmet": "^8.2.0",
+    "hpp": "^0.2.3",
     "jsonwebtoken": "^9.0.3",
     "mongodb": "^7.2.0",
     "mongoose": "^9.4.1",
     "node-cron": "^4.2.1",
-    "twilio": "^5.13.1"
+    "twilio": "^5.13.1",
+    "xss-clean": "^0.1.4"
   }
 }

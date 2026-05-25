@@ -48,8 +48,20 @@ app.set('trust proxy', 1);
 app.use(helmet());
 
 // 2. CORS (Restricted origin recommended for production)
+const getAllowedOrigin = () => {
+  const frontendUrl = process.env.FRONTEND_URL;
+  if (!frontendUrl || frontendUrl === '*') return '*';
+  try {
+    // Browsers send 'origin' without the path (e.g., https://theailenders.github.io)
+    // but FRONTEND_URL might include a path (e.g., /Digital-GK-Book/)
+    return new URL(frontendUrl).origin;
+  } catch (e) {
+    return frontendUrl;
+  }
+};
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: getAllowedOrigin(),
   credentials: true
 }));
 

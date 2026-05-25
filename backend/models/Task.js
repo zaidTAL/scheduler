@@ -63,4 +63,7 @@ const taskSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Index for efficient correction window lookups and history retrieval
+taskSchema.index({ userId: 1, createdAt: -1 });
+
 module.exports = mongoose.model('Task', taskSchema);

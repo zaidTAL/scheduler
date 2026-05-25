@@ -7,15 +7,23 @@ const connectDB = require('./config/db');
 
 // Environment Variable Validation
 const requiredEnvVars = [
-  'MONGO_URI',
+  'MONGO_URI_LOCAL',
+  'MONGO_URI_PROD',
   'JWT_SECRET',
   'GROQ_API_KEY',
   'TWILIO_ACCOUNT_SID',
   'TWILIO_AUTH_TOKEN',
-  'TWILIO_PHONE_NUMBER',
+  'TWILIO_WHATSAPP_NUMBER',
+  'TWILIO_TEMPLATE_SID',
+  'TWILIO_MESSAGING_SERVICE_SID',
   'GOOGLE_CLIENT_ID',
   'GOOGLE_CLIENT_SECRET',
-  'GOOGLE_REDIRECT_URI'
+  'GOOGLE_REDIRECT_URI',
+  'FRONTEND_URL',
+  'CALENDLY_SECRET',
+  'CALENDLY_CLIENT_ID',
+  'ENV',
+  'PORT'
 ];
 
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);

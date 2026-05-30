@@ -1,6 +1,6 @@
 const twilio = require('twilio');
 const axios = require('axios');
-const GeminiService = require('./gemini.service');
+const OpenRouterService = require('./openRouter.service');
 
 class TwilioService {
   constructor() {
@@ -127,7 +127,7 @@ class TwilioService {
       });
 
       const audioBuffer = Buffer.from(audioResponse.data);
-      const transcription = await GeminiService.transcribeAudio(audioBuffer, 'audio/ogg', isMultilingual);
+      const transcription = await OpenRouterService.transcribeAudio(audioBuffer, 'audio/ogg', isMultilingual);
       return transcription;
     } catch (error) {
       console.error('Error transcribing voice message:', error.message);

@@ -1,7 +1,7 @@
 const User = require('../models/User');
 const Task = require('../models/Task');
 const TwilioService = require('../services/twilio.service');
-const GeminiService = require('../services/gemini.service');
+const OpenRouterService = require('../services/openRouter.service');
 const GoogleCalendarService = require('../services/googleCalendar.service');
 const CalendlyService = require('../services/calendly.service');
 const { checkPlanLimits, incrementUsage } = require('../middleware/planCheck.middleware');
@@ -67,7 +67,7 @@ const handleWhatsAppMessage = async (req, res) => {
     let parsedData;
     try {
       const isMultilingual = user.plan === 'pro';
-      parsedData = await GeminiService.parseTaskWithAI(messageText, user.timezone, isMultilingual);
+      parsedData = await OpenRouterService.parseTaskWithAI(messageText, user.timezone, isMultilingual);
     } catch (parseError) {
       await TwilioService.sendWhatsAppMessage(From, "I'm having trouble understanding that request. Could you try rephrasing it?");
       return res.status(200).send('OK');

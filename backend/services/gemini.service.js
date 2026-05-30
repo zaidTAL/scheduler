@@ -5,7 +5,7 @@ class GeminiService {
   constructor() {
     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     this.model = this.genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash',
+      model: 'gemini-3.1-flash-lite',
       generationConfig: {
         responseMimeType: 'application/json'
       }
@@ -94,7 +94,7 @@ Return ONLY the JSON object. No explanation.`;
    */
   async transcribeAudio(audioBuffer, mimeType = 'audio/ogg', isMultilingual = false) {
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
       
       const prompt = isMultilingual 
         ? "Transcribe this audio. It might be in English, Urdu, or Roman Urdu. Return only the transcription text."

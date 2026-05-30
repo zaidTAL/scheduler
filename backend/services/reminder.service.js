@@ -41,9 +41,20 @@ class ReminderService {
       for (const user of users) {
         try {
           // Refresh tokens if needed
-          const tokens = await GoogleCalendarService.refreshTokenIfNeeded(user);
-          user.googleTokens = tokens;
-          await user.save();
+          let tokens;
+          try {
+            tokens = await GoogleCalendarService.refreshTokenIfNeeded(user);
+            user.googleTokens = tokens;
+            await user.save();
+          } catch (refreshErr) {
+            if (refreshErr.message.includes('invalid_grant')) {
+              console.warn(`[Reminder] Revoking tokens for ${user.email} due to invalid_grant`);
+              user.googleTokens = undefined; // Clear invalid tokens
+              await user.save();
+              continue; // Skip this user for this run
+            }
+            throw refreshErr;
+          }
 
           // Fetch next 10 tasks
           const tasks = await GoogleCalendarService.listTasks(tokens, 10);

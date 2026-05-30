@@ -23,7 +23,9 @@ const requiredEnvVars = [
   'CALENDLY_SECRET',
   'CALENDLY_CLIENT_ID',
   'ENV',
-  'PORT'
+  'PORT',
+  'SMTP_USER',
+  'SMTP_PASS'
 ];
 
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -37,9 +39,13 @@ if (missingEnvVars.length > 0) {
 const authRoutes = require('./routes/auth.routes');
 const webhookRoutes = require('./routes/webhook.routes');
 const userRoutes = require('./routes/user.routes');
+const reminderService = require('./services/reminder.service');
 
 // Initialize Express app
 const app = express();
+
+// Initialize Task Reminder Cron
+reminderService.startCron();
 
 // Enable 'trust proxy' (Required for rate limiting when behind ngrok/proxies)
 app.set('trust proxy', 1);

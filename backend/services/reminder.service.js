@@ -5,14 +5,21 @@ const cron = require('node-cron');
 
 class ReminderService {
   constructor() {
+    const port = parseInt(process.env.SMTP_PORT) || 587;
+    // For port 465, secure must be true. For 587/25, secure must be false.
+    const isSecure = port === 465;
+
     this.transporter = nodemailer.createTransport({
-      // Configure your SMTP settings here or in .env
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: process.env.SMTP_PORT || 587,
-      secure: process.env.SMTP_SECURE === 'true',
+      port: port,
+      secure: isSecure,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
+      },
+      // Ensure we don't fail on self-signed certs in some environments
+      tls: {
+        rejectUnauthorized: false
       }
     });
   }
@@ -36,7 +43,8 @@ class ReminderService {
    */
   async sendTaskReminders() {
     try {
-      const users = await User.find({ googleTokens: { $exists: true } });
+      // Only find users who have a refresh token (actual connection)
+      const users = await User.find({ 'googleTokens.refresh_token': { $exists: true, $ne: null } });
 
       for (const user of users) {
         try {
@@ -48,10 +56,10 @@ class ReminderService {
             await user.save();
           } catch (refreshErr) {
             if (refreshErr.message.includes('invalid_grant')) {
-              console.warn(`[Reminder] Revoking tokens for ${user.email} due to invalid_grant`);
-              user.googleTokens = undefined; // Clear invalid tokens
-              await user.save();
-              continue; // Skip this user for this run
+              console.warn(`[Reminder] Permanently revoking broken tokens for ${user.email}`);
+              // Use $unset to completely remove the field from the document
+              await User.updateOne({ _id: user._id }, { $unset: { googleTokens: "" } });
+              continue; 
             }
             throw refreshErr;
           }

@@ -1,6 +1,6 @@
 const twilio = require('twilio');
 const axios = require('axios');
-const GroqService = require('./groq.service');
+const GeminiService = require('./gemini.service');
 
 class TwilioService {
   constructor() {
@@ -115,7 +115,7 @@ class TwilioService {
   }
 
   /**
-   * Download audio from Twilio and transcribe using Groq Whisper
+   * Download audio from Twilio and transcribe using Gemini
    */
   async transcribeVoice(mediaUrl, isMultilingual = false) {
     try {
@@ -126,8 +126,8 @@ class TwilioService {
         }
       });
 
-      const audioBlob = new Blob([audioResponse.data], { type: 'audio/ogg' });
-      const transcription = await GroqService.transcribeAudio(audioBlob, isMultilingual);
+      const audioBuffer = Buffer.from(audioResponse.data);
+      const transcription = await GeminiService.transcribeAudio(audioBuffer, 'audio/ogg', isMultilingual);
       return transcription;
     } catch (error) {
       console.error('Error transcribing voice message:', error.message);

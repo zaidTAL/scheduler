@@ -70,12 +70,14 @@ Return ONLY the JSON object. No explanation.`;
       const systemPrompt = this.getSystemPrompt(timezone, isMultilingual);
       
       const completion = await this.client.chat.send({
-        model: this.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `User message: ${message}` }
-        ],
-        temperature: 0.1
+        chatRequest: {
+          model: this.model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `User message: ${message}` }
+          ],
+          temperature: 0.1
+        }
       });
 
       let text = completion.choices[0].message.content.trim();
@@ -122,19 +124,21 @@ Return ONLY the JSON object. No explanation.`;
           : "Transcribe this audio in English. Return only the transcription text.";
 
         const completion = await this.client.chat.send({
-          model: this.transcriptionModel,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: prompt },
-                {
-                  type: 'image_url', // OpenRouter often uses image_url for all media files in OpenAI format
-                  url: `data:${mimeType};base64,${audioBuffer.toString('base64')}`
-                }
-              ]
-            }
-          ]
+          chatRequest: {
+            model: this.transcriptionModel,
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  { type: 'text', text: prompt },
+                  {
+                    type: 'image_url', // OpenRouter often uses image_url for all media files in OpenAI format
+                    url: `data:${mimeType};base64,${audioBuffer.toString('base64')}`
+                  }
+                ]
+              }
+            ]
+          }
         });
 
         return completion.choices[0].message.content.trim();

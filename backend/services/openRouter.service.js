@@ -8,8 +8,27 @@ class OpenRouterService {
       httpReferer: 'https://theailenders.github.io/Digital-GK-Book/', // Recommended for OpenRouter
       appTitle: 'AI Scheduler'
     });
-    this.model = 'google/gemma-4-31b-it:free';
+    // Primary and fallback free models for robustness
+    this.models = [
+      'google/gemma-4-31b-it:free',
+      'meta-llama/llama-3.1-8b-instruct:free',
+      'mistralai/mistral-7b-instruct:free'
+    ];
     this.transcriptionModel = 'nvidia/nemotron-3-nano-omni:free';
+  }
+
+  /**
+   * Helper for exponential backoff retries
+   */
+  async withRetry(fn, retries = 3, delay = 1000) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (retries <= 0) throw error;
+      console.warn(`[OpenRouter] Call failed, retrying in ${delay}ms... (${retries} left)`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return this.withRetry(fn, retries - 1, delay * 2);
+    }
   }
 
   /**
@@ -63,33 +82,40 @@ Return ONLY the JSON object. No explanation.`;
   }
 
   /**
-   * Parse task from natural language using OpenRouter (Gemma 4 Free)
+   * Parse task from natural language using OpenRouter (Gemma 4 Free with Fallbacks)
    */
   async parseTaskWithAI(message, timezone = 'Asia/Karachi', isMultilingual = false) {
-    try {
-      const systemPrompt = this.getSystemPrompt(timezone, isMultilingual);
-      
-      const completion = await this.client.chat.send({
-        chatRequest: {
-          model: this.model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: `User message: ${message}` }
-          ],
-          temperature: 0.1
-        }
-      });
+    return this.withRetry(async () => {
+      try {
+        const systemPrompt = this.getSystemPrompt(timezone, isMultilingual);
+        
+        const completion = await this.client.chat.send({
+          chatRequest: {
+            models: this.models, // Auto-fallback handled by OpenRouter
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: `User message: ${message}` }
+            ],
+            temperature: 0.1
+          }
+        });
 
-      let text = completion.choices[0].message.content.trim();
-      
-      // Sanitization: Remove markdown code blocks
-      text = text.replace(/^```(?:json)?\s*/, '').replace(/```$/, '');
-      
-      return JSON.parse(text);
-    } catch (error) {
-      console.error('Error parsing task with OpenRouter:', error.message);
-      throw error;
-    }
+        let text = completion.choices[0].message.content.trim();
+        
+        // Sanitization: Remove markdown code blocks
+        text = text.replace(/^```(?:json)?\s*/, '').replace(/```$/, '');
+        
+        return JSON.parse(text);
+      } catch (error) {
+        // Log more detail if it's a provider error
+        if (error.message.includes('Provider returned error')) {
+          console.error('[OpenRouter] Provider Error detected. Retrying...');
+        } else {
+          console.error('Error parsing task with OpenRouter:', error.message);
+        }
+        throw error;
+      }
+    });
   }
 
   /**

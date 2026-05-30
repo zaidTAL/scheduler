@@ -60,8 +60,8 @@ class ReminderService {
           const tasks = await GoogleCalendarService.listTasks(tokens, 10);
           
           if (tasks.length > 0) {
-            await this.sendEmail(user, tasks);
-            console.log(`[Reminder] Sent task summary to ${user.email}`);
+            const info = await this.sendEmail(user, tasks);
+            console.log(`[Reminder] Email sent to ${user.email}. MessageId: ${info.messageId}`);
           }
         } catch (err) {
           console.error(`[Reminder Error] Failed for ${user.email}: ${err.message}`);
@@ -102,7 +102,13 @@ class ReminderService {
       `
     };
 
-    return this.transporter.sendMail(mailOptions);
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      return info;
+    } catch (smtpError) {
+      console.error(`[SMTP Error] Could not send to ${user.email}:`, smtpError.message);
+      throw smtpError;
+    }
   }
 }
 

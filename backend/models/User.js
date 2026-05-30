@@ -66,7 +66,7 @@ const userSchema = new mongoose.Schema({
   },
   plan: {
     type: String,
-    enum: ['free', 'plus', 'pro'],
+    enum: ['free', 'plus', 'pro', 'free_trial'],
     default: 'free'
   },
   usage: {
